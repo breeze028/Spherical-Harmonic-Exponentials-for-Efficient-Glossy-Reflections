@@ -277,6 +277,7 @@
     <None Include="..\Source\External\EAStdC\internal\EAMemory.inl" />
     <None Include="..\Source\External\EAStdC\Win32\EAMathHelpWin32.inl" />
     <None Include="..\Source\Shaders\Common.hlsli" />
+    <None Include="..\Source\Shaders\SHE_Math.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Source\Shaders\GenerateBRDFIntegrationMap.hlsl" />
@@ -284,6 +285,12 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
     </FxCompile>
+    <FxCompile Include="..\Source\Shaders\SHE_Build.hlsl">
+      <FileType>Document</FileType>
+    </FxCompile>
+    <FxCompile Include="..\Source\Shaders\SHE_Reduction.hlsl" />
+    <FxCompile Include="..\Source\Shaders\SHE_Reduction_Merge.hlsl" />
+    <FxCompile Include="..\Source\Shaders\SHE_Solve.hlsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

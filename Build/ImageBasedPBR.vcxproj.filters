@@ -839,12 +839,27 @@
     <None Include="..\Source\Shaders\Common.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\Source\Shaders\SHE_Math.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Source\Shaders\GenerateMipmaps.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\Source\Shaders\GenerateBRDFIntegrationMap.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Source\Shaders\SHE_Build.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Source\Shaders\SHE_Reduction.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Source\Shaders\SHE_Reduction_Merge.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Source\Shaders\SHE_Solve.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

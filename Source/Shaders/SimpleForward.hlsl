@@ -1,10 +1,11 @@
 #include "../CPUAndGPUCommon.h"
 #include "Common.hlsli"
+#include "SHE_Math.hlsli"
 
 #define GRootSignature                                                                                     \
 	"RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT), "                                                      \
 	"CBV(b0), "                                                                                            \
-	"DescriptorTable(CBV(b1), SRV(t0), SRV(t1), SRV(t2), SRV(t3), SRV(t4), visibility = SHADER_VISIBILITY_PIXEL), " \
+	"DescriptorTable(CBV(b1), SRV(t0), SRV(t1), SRV(t2), SRV(t3), SRV(t4), SRV(t5), visibility = SHADER_VISIBILITY_PIXEL), " \
 	"StaticSampler("                                                                                       \
 	"s0, "                                                                                                 \
 	"filter = FILTER_MIN_MAG_MIP_LINEAR, "                                                                 \
@@ -20,18 +21,8 @@ TextureCube GPrefilteredEnvMap : register(t1);
 TextureCube GEnvMap : register(t2);
 Texture2D GBRDFIntegrationMap : register(t3);
 Texture2D GAccumulationBuffer : register(t4);
+StructuredBuffer<float3> GSHESHCoeff : register(t5);
 SamplerState GSampler : register(s0);
-
-// Trowbridge-Reitz GGX normal distribution function.
-float DistributionGGX(float3 N, float3 H, float Roughness)
-{
-	float Alpha = Roughness * Roughness;
-	float Alpha2 = Alpha * Alpha;
-	float NoH = dot(N, H);
-	float NoH2 = NoH * NoH;
-	float K = NoH2 * Alpha2 + (1.0f - NoH2);
-	return Alpha2 / (PI * K * K);
-}
 
 float3 FresnelSchlick(float CosTheta, float3 F0)
 {
@@ -55,11 +46,11 @@ float3 FresnelSchlickRoughness(float CosTheta, float3 F0, float Roughness)
 	OutNormalWS = mul(InNormal, (float3x3)GPerDrawCB.ObjectToWorld);
 }
 
-	[RootSignature(GRootSignature)] void MainPS(
-		in float4 InPosition : SV_Position,
-		in float3 InPositionWS : _Position,
-		in float3 InNormalWS : _Normal,
-		out float4 OutColor : SV_Target0)
+[RootSignature(GRootSignature)] void MainPS(
+	in float4 InPosition : SV_Position,
+	in float3 InPositionWS : _Position,
+	in float3 InNormalWS : _Normal,
+	out float4 OutColor : SV_Target0)
 {
 	float3 V = normalize(GPerFrameCB.ViewerPosition.xyz - InPositionWS);
 	float3 N = normalize(InNormalWS);
@@ -116,11 +107,77 @@ float3 FresnelSchlickRoughness(float CosTheta, float3 F0, float Roughness)
 		Diffuse = Irradiance * Albedo;
 
 		float3 PrefilteredColor = GPrefilteredEnvMap.SampleLevel(GSampler, R, Roughness * 5.0f).rgb;
-		float2 EnvBRDF = GBRDFIntegrationMap.SampleLevel(GSampler, float2(min(NoV, 0.999f), Roughness), 0.0f).rg;
+		float2 EnvBRDF = GBRDFIntegrationMap.SampleLevel(GSampler, float2(min(NoV, 0.999f), min(Roughness, 0.999f)), 0.0f).rg;
 		Specular = PrefilteredColor * (F * EnvBRDF.x + EnvBRDF.y);
 	}
 	else if (GPerFrameCB.IBLMode == IBL_MODE_SPHERICAL_HARMONICS_EXPONENTIAL)
 	{
+		float3 Hr = normalize(N + R);
+
+		FFiveBandSHVector yP = SHBasisFunction5(R);
+		FThreeBandSHVector yQ = SHBasisFunction3(Hr);
+
+		float vmf[5];
+		for (int l = 0; l < 5; ++l)
+		{
+			vmf[l] = vMF(l, 1.0f / Roughness);
+		}
+		yP = VMF_SH5(yP, vmf);
+		yQ = VMF_SH3(yQ, vmf);
+
+		FFiveBandSHVectorRGB P;
+		FThreeBandSHVectorRGB Q;
+
+		half3 coeffs[33];
+		for (int i = 0; i < 33; i++)
+		{
+    		coeffs[i] = GSHESHCoeff[i];
+		}
+
+		P.R.V0 = half4(coeffs[0].r, coeffs[1].r, coeffs[2].r, coeffs[3].r);
+		P.R.V1 = half4(coeffs[4].r, coeffs[5].r, coeffs[6].r, coeffs[7].r);
+		P.R.V2 = half4(coeffs[8].r, coeffs[9].r, coeffs[10].r, coeffs[11].r);
+		P.R.V3 = half4(coeffs[12].r, coeffs[13].r, coeffs[14].r, coeffs[15].r);
+		P.R.V4 = half4(coeffs[16].r, coeffs[17].r, coeffs[18].r, coeffs[19].r);
+		P.R.V5 = half4(coeffs[20].r, coeffs[21].r, coeffs[22].r, coeffs[23].r);
+		P.R.V6 = half(coeffs[24].r);
+
+		P.G.V0 = half4(coeffs[0].g, coeffs[1].g, coeffs[2].g, coeffs[3].g);
+		P.G.V1 = half4(coeffs[4].g, coeffs[5].g, coeffs[6].g, coeffs[7].g);
+		P.G.V2 = half4(coeffs[8].g, coeffs[9].g, coeffs[10].g, coeffs[11].g);
+		P.G.V3 = half4(coeffs[12].g, coeffs[13].g, coeffs[14].g, coeffs[15].g);
+		P.G.V4 = half4(coeffs[16].g, coeffs[17].g, coeffs[18].g, coeffs[19].g);
+		P.G.V5 = half4(coeffs[20].g, coeffs[21].g, coeffs[22].g, coeffs[23].g);
+		P.G.V6 = half(coeffs[24].g);
+
+		P.B.V0 = half4(coeffs[0].b, coeffs[1].b, coeffs[2].b, coeffs[3].b);
+		P.B.V1 = half4(coeffs[4].b, coeffs[5].b, coeffs[6].b, coeffs[7].b);
+		P.B.V2 = half4(coeffs[8].b, coeffs[9].b, coeffs[10].b, coeffs[11].b);
+		P.B.V3 = half4(coeffs[12].b, coeffs[13].b, coeffs[14].b, coeffs[15].b);
+		P.B.V4 = half4(coeffs[16].b, coeffs[17].b, coeffs[18].b, coeffs[19].b);
+		P.B.V5 = half4(coeffs[20].b, coeffs[21].b, coeffs[22].b, coeffs[23].b);
+		P.B.V6 = half(coeffs[24].b);
+
+		Q.R.V0 = half4(coeffs[0].r, coeffs[25].r, coeffs[26].r, coeffs[27].r);
+		Q.R.V1 = half4(coeffs[28].r, coeffs[29].r, coeffs[30].r, coeffs[31].r);
+		Q.R.V2 = half(coeffs[32].r);
+
+		Q.G.V0 = half4(coeffs[0].g, coeffs[25].g, coeffs[26].g, coeffs[27].g);
+		Q.G.V1 = half4(coeffs[28].g, coeffs[29].g, coeffs[30].g, coeffs[31].g);
+		Q.G.V2 = half(coeffs[32].g);
+
+		Q.B.V0 = half4(coeffs[0].b, coeffs[25].b, coeffs[26].b, coeffs[27].b);
+		Q.B.V1 = half4(coeffs[28].b, coeffs[29].b, coeffs[30].b, coeffs[31].b);
+		Q.B.V2 = half(coeffs[32].b);
+
+		half3 bias = GPerFrameCB.SHEBias;
+
+		half3 logP = DotSH5(P, yP);
+		half3 logQ = DotSH3(Q, yQ);
+		half3 E0 = exp(logP + logQ + bias);
+
+		half3 E1 = E0 * GBRDFIntegrationMap.SampleLevel(GSampler, float2(min(NoV, 0.999f), min(Roughness, 0.999f)), 0.0f).g;
+		Specular = F0 * E0 + (1.0f - F0) * E1;
 	}
 	else if (GPerFrameCB.IBLMode == IBL_MODE_REFERENCE)
 	{

@@ -18,7 +18,7 @@ enum
 
 enum
 {
-	PSO_Test, PSO_SimpleForward, PSO_SampleEnvMap, PSO_EquirectangularToCube, PSO_GenerateIrradianceMap, PSO_PrefilterEnvMap, PSO_GenerateBRDFIntegrationMap,
+	PSO_Test, PSO_SimpleForward, PSO_SampleEnvMap, PSO_EquirectangularToCube, PSO_GenerateIrradianceMap, PSO_PrefilterEnvMap, PSO_GenerateBRDFIntegrationMap, PSO_SHE_Build, PSO_SHE_Reduction, PSO_SHE_Reduction_Merge, PSO_SHE_Solve,
 };
 
 struct FVertex
@@ -75,11 +75,19 @@ struct FDemoRoot
 	ID3D12Resource* IrradianceMap;
 	ID3D12Resource* PrefilteredEnvMap;
 	ID3D12Resource* BRDFIntegrationMap;
+	ID3D12Resource* SHEMatrixA;
+	ID3D12Resource* SHEMatrixb;
+	ID3D12Resource* SHEMatrixAT;
+	ID3D12Resource* SHESHCoeff;
 	D3D12_CPU_DESCRIPTOR_HANDLE EnvMapSRV;
 	D3D12_CPU_DESCRIPTOR_HANDLE IrradianceMapSRV;
 	D3D12_CPU_DESCRIPTOR_HANDLE PrefilteredEnvMapSRV;
 	D3D12_CPU_DESCRIPTOR_HANDLE BRDFIntegrationMapSRV;
 	D3D12_CPU_DESCRIPTOR_HANDLE AccumulationBufferSRV;
+	D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixASRV;
+	D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixbSRV;
+	D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixATSRV;
+	D3D12_CPU_DESCRIPTOR_HANDLE SHESHCoeffSRV;
 	ID3D12Resource* MSColorBuffer;
 	ID3D12Resource* MSDepthBuffer;
 	ID3D12Resource* AccumulationBuffer;
@@ -89,6 +97,7 @@ struct FDemoRoot
 	int LastIBLMode;
 	int MaterialMode;
 	int IBLMode;
+	float SHEBias;
 	uint32_t NumFrames;
 };
 
@@ -117,6 +126,15 @@ static void UpdateUI(FDemoRoot& Root, float DeltaTime)
 		ImGui::Text("IBL Mode");
 		const char* items[] = { "Split Sum Approximation", "Spherical Harmonics Exponential (Specular Only)", "Reference" };
 		ImGui::Combo("##IBLMode", &(Root.IBLMode), items, IM_ARRAYSIZE(items));
+	}
+
+	{
+		if (Root.IBLMode == IBL_MODE_SPHERICAL_HARMONICS_EXPONENTIAL)
+		{
+			ImGui::Text("SHE Bias");
+			ImGui::SliderFloat("##SHEBias", &Root.SHEBias, 0.0f, 10.0f);
+		}
+		
 	}
 
 	ImGui::End();
@@ -202,10 +220,11 @@ static void Draw(FDemoRoot& Root)
 			CPUAddress->MaterialMode = Root.MaterialMode;
 			CPUAddress->IBLMode = Root.IBLMode;
 			CPUAddress->NumFrames = Root.NumFrames;
+			CPUAddress->SHEBias = Root.SHEBias;
 
 			CD3DX12_CPU_DESCRIPTOR_HANDLE TableBaseCPU;
 			CD3DX12_GPU_DESCRIPTOR_HANDLE TableBaseGPU;
-			AllocateGPUDescriptors(Gfx, 6, TableBaseCPU, TableBaseGPU);
+			AllocateGPUDescriptors(Gfx, 7, TableBaseCPU, TableBaseGPU);
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc = {};
 			CBVDesc.BufferLocation = GPUAddress;
@@ -227,6 +246,9 @@ static void Draw(FDemoRoot& Root)
 			TableBaseCPU.Offset(Gfx.DescriptorSize);
 
 			Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, Root.AccumulationBufferSRV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+			Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, Root.SHESHCoeffSRV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			TableBaseCPU.Offset(Gfx.DescriptorSize);
 
 			CmdList->SetGraphicsRootDescriptorTable(1, TableBaseGPU);
@@ -458,6 +480,18 @@ static void CreatePipelines(FGraphicsContext& Gfx, uint32_t NumSamples, eastl::v
 
 	EA_ASSERT(OutPipelines.size() == PSO_GenerateBRDFIntegrationMap);
 	AddComputePipeline(Gfx, "GenerateBRDFIntegrationMap.cs.cso", OutPipelines, OutSignatures);
+
+	EA_ASSERT(OutPipelines.size() == PSO_SHE_Build);
+	AddComputePipeline(Gfx, "SHE_Build.cs.cso", OutPipelines, OutSignatures);
+
+	EA_ASSERT(OutPipelines.size() == PSO_SHE_Reduction);
+	AddComputePipeline(Gfx, "SHE_Reduction.cs.cso", OutPipelines, OutSignatures);
+
+	EA_ASSERT(OutPipelines.size() == PSO_SHE_Reduction_Merge);
+	AddComputePipeline(Gfx, "SHE_Reduction_Merge.cs.cso", OutPipelines, OutSignatures);
+
+	EA_ASSERT(OutPipelines.size() == PSO_SHE_Solve);
+	AddComputePipeline(Gfx, "SHE_Solve.cs.cso", OutPipelines, OutSignatures);
 }
 
 static void CreateEnvMap(FGraphicsContext& Gfx, const FStaticMesh& Cube, ID3D12Resource*& OutEnvMap, D3D12_CPU_DESCRIPTOR_HANDLE& OutEnvMapSRV, eastl::vector<ID3D12Resource*>& OutTempResources)
@@ -792,6 +826,239 @@ static void CreateBRDFIntegrationMap(FGraphicsContext& Gfx, ID3D12Resource*& Out
 	Gfx.CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(OutBRDFIntegrationMap, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
+static void SHEBuild(FGraphicsContext& Gfx, ID3D12Resource*& OutSHEMatrixA, ID3D12Resource*& OutSHEMatrixb, D3D12_CPU_DESCRIPTOR_HANDLE& OutSHEMatrixASRV, D3D12_CPU_DESCRIPTOR_HANDLE& OutSHEMatrixbSRV, D3D12_CPU_DESCRIPTOR_HANDLE EnvMapSRV)
+{
+	const uint32_t ViewCountSqrt = 8;
+	const uint32_t NormalCountSqrt = 8;
+	const uint32_t ViewCount = ViewCountSqrt * ViewCountSqrt;
+	const uint32_t NormalCount = NormalCountSqrt * NormalCountSqrt;
+	const uint32_t RoughnessCount = 4;
+	const uint32_t SphericalHarmonicCount = 33; // 25(SH5) + 9(SH3) - 1(DC)
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE TempSHEMatrixAUAV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	{
+		auto Desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32_FLOAT, ViewCount * SphericalHarmonicCount, NormalCount * RoughnessCount, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&OutSHEMatrixA)));
+		Gfx.Device->CreateUnorderedAccessView(OutSHEMatrixA, nullptr, nullptr, TempSHEMatrixAUAV);
+
+		OutSHEMatrixASRV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+		Gfx.Device->CreateShaderResourceView(OutSHEMatrixA, nullptr, OutSHEMatrixASRV);
+	}
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE TempSHEMatrixbUAV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	{
+		auto Desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R16G16B16A16_FLOAT, ViewCount, NormalCount * RoughnessCount, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&OutSHEMatrixb)));
+		Gfx.Device->CreateUnorderedAccessView(OutSHEMatrixb, nullptr, nullptr, TempSHEMatrixbUAV);
+
+		OutSHEMatrixbSRV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+		Gfx.Device->CreateShaderResourceView(OutSHEMatrixb, nullptr, OutSHEMatrixbSRV);
+	}
+
+	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
+
+	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
+	auto* CPUAddress = (FSHEBuildConstantData*)AllocateGPUMemory(Gfx, sizeof(FSHEBuildConstantData), GPUAddress);
+
+	CPUAddress->ViewCount = ViewCount;
+	CPUAddress->NormalCount = NormalCount;
+	CPUAddress->ViewCountSqrt = ViewCountSqrt;
+	CPUAddress->NormalCountSqrt = NormalCountSqrt;
+	CPUAddress->RoughnessCount = RoughnessCount;
+	CPUAddress->SphericalHarmonicCount = SphericalHarmonicCount;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE TableBaseCPU;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE TableBaseGPU;
+	AllocateGPUDescriptors(Gfx, 4, TableBaseCPU, TableBaseGPU);
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc = {};
+	CBVDesc.BufferLocation = GPUAddress;
+	CBVDesc.SizeInBytes = sizeof(FSHEBuildConstantData);
+
+	Gfx.Device->CreateConstantBufferView(&CBVDesc, TableBaseCPU);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, EnvMapSRV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, TempSHEMatrixAUAV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, TempSHEMatrixbUAV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	CmdList->SetComputeRootDescriptorTable(0, TableBaseGPU);
+	CmdList->Dispatch(8, 8, 4);
+
+	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+    	OutSHEMatrixA, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+
+	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+    	OutSHEMatrixb, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+}
+
+static void SHEReduction(FDemoRoot& Root, FGraphicsContext& Gfx, ID3D12Resource*& OutSHEMatrixAT, D3D12_CPU_DESCRIPTOR_HANDLE& OutSHEMatrixATSRV, D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixASRV, D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixbSRV,
+	eastl::vector<ID3D12Resource*>& OutTempResources)
+{
+	const uint32_t ViewCountSqrt = 8;
+	const uint32_t NormalCountSqrt = 8;
+	const uint32_t ViewCount = ViewCountSqrt * ViewCountSqrt;
+	const uint32_t NormalCount = NormalCountSqrt * NormalCountSqrt;
+	const uint32_t RoughnessCount = 4;
+	const uint32_t SphericalHarmonicCount = 33; // 25(SH5) + 9(SH3) - 1(DC)
+	const uint32_t GroupCountZ = 64;
+
+	ID3D12Resource* TempSHEMatrixAT3D;
+	const D3D12_CPU_DESCRIPTOR_HANDLE TempSHEMatrixAT3DUAV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	const D3D12_CPU_DESCRIPTOR_HANDLE TempSHEMatrixAT3DSRV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	{
+		auto Desc = CD3DX12_RESOURCE_DESC::Tex3D(
+			DXGI_FORMAT_R32_FLOAT, 
+			SphericalHarmonicCount * 2,  // Width
+			SphericalHarmonicCount + 3,  // Height  
+			GroupCountZ,  // Depth
+			1, // MipLevels
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+		);
+		VHR(Gfx.Device->CreateCommittedResource(
+			get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+			D3D12_HEAP_FLAG_NONE, 
+			&Desc, 
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 
+			nullptr, 
+			IID_PPV_ARGS(&TempSHEMatrixAT3D)));
+		OutTempResources.push_back(TempSHEMatrixAT3D);
+
+		Gfx.Device->CreateUnorderedAccessView(TempSHEMatrixAT3D, nullptr, nullptr, TempSHEMatrixAT3DUAV);
+		Gfx.Device->CreateShaderResourceView(TempSHEMatrixAT3D, nullptr, TempSHEMatrixAT3DSRV);
+	}
+
+	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
+
+	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
+	auto* CPUAddress = (FSHEReductionConstantData*)AllocateGPUMemory(Gfx, sizeof(FSHEReductionConstantData), GPUAddress);
+
+	CPUAddress->ViewCount = ViewCount;
+	CPUAddress->ElementCount = ViewCount * NormalCount * RoughnessCount;
+	CPUAddress->GroupCountZ = GroupCountZ;
+	CPUAddress->SphericalHarmonicCount = SphericalHarmonicCount;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE TableBaseCPU;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE TableBaseGPU;
+	AllocateGPUDescriptors(Gfx, 4, TableBaseCPU, TableBaseGPU);
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc = {};
+	CBVDesc.BufferLocation = GPUAddress;
+	CBVDesc.SizeInBytes = sizeof(FSHEReductionConstantData);
+
+	Gfx.Device->CreateConstantBufferView(&CBVDesc, TableBaseCPU);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, SHEMatrixASRV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, SHEMatrixbSRV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, TempSHEMatrixAT3DUAV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	CmdList->SetComputeRootDescriptorTable(0, TableBaseGPU);
+	CmdList->Dispatch(1, 1, GroupCountZ);
+
+	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+    	TempSHEMatrixAT3D, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+
+	// Merge
+	Gfx.CmdList->SetPipelineState(Root.Pipelines[PSO_SHE_Reduction_Merge]);
+	Gfx.CmdList->SetComputeRootSignature(Root.RootSignatures[PSO_SHE_Reduction_Merge]);
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE TempSHEMatrixATUAV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	{
+		auto Desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32_FLOAT, SphericalHarmonicCount * 2, SphericalHarmonicCount + 3, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&OutSHEMatrixAT)));
+		Gfx.Device->CreateUnorderedAccessView(OutSHEMatrixAT, nullptr, nullptr, TempSHEMatrixATUAV);
+
+		OutSHEMatrixATSRV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+		Gfx.Device->CreateShaderResourceView(OutSHEMatrixAT, nullptr, OutSHEMatrixATSRV);
+	}
+
+	{
+		D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
+		auto* CPUAddress = (FSHEReductionConstantData*)AllocateGPUMemory(Gfx, sizeof(FSHEReductionConstantData), GPUAddress);
+
+		CPUAddress->ViewCount = ViewCount;
+		CPUAddress->ElementCount = ViewCount * NormalCount * RoughnessCount;
+		CPUAddress->GroupCountZ = GroupCountZ;
+		CPUAddress->SphericalHarmonicCount = SphericalHarmonicCount;
+
+		CD3DX12_CPU_DESCRIPTOR_HANDLE TableBaseCPU;
+		CD3DX12_GPU_DESCRIPTOR_HANDLE TableBaseGPU;
+		AllocateGPUDescriptors(Gfx, 3, TableBaseCPU, TableBaseGPU);
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc = {};
+		CBVDesc.BufferLocation = GPUAddress;
+		CBVDesc.SizeInBytes = sizeof(FSHEReductionConstantData);
+
+		Gfx.Device->CreateConstantBufferView(&CBVDesc, TableBaseCPU);
+		TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+		Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, TempSHEMatrixAT3DSRV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+		Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, TempSHEMatrixATUAV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+		CmdList->SetComputeRootDescriptorTable(0, TableBaseGPU);
+		CmdList->Dispatch(1, 1, GroupCountZ);
+
+		CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+    		OutSHEMatrixAT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));	
+	}
+}
+
+static void SHESolve(FGraphicsContext& Gfx, ID3D12Resource*& OutSHESHCoeff, D3D12_CPU_DESCRIPTOR_HANDLE& OutSHESHCoeffSRV, D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixAT)
+{
+	const D3D12_CPU_DESCRIPTOR_HANDLE TempSHESHCoeffUAV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	{
+		auto Desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(XMFLOAT3) * 33, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&OutSHESHCoeff)));
+		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		UAVDesc.Buffer.NumElements = 33;
+		UAVDesc.Buffer.StructureByteStride = sizeof(XMFLOAT3);
+		UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
+		Gfx.Device->CreateUnorderedAccessView(OutSHESHCoeff, nullptr, &UAVDesc, TempSHESHCoeffUAV);
+
+		OutSHESHCoeffSRV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		SRVDesc.Buffer.NumElements = 33;
+		SRVDesc.Buffer.StructureByteStride = sizeof(XMFLOAT3);
+		SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		Gfx.Device->CreateShaderResourceView(OutSHESHCoeff, &SRVDesc, OutSHESHCoeffSRV);
+	}
+
+	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE TableBaseCPU;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE TableBaseGPU;
+	AllocateGPUDescriptors(Gfx, 2, TableBaseCPU, TableBaseGPU);
+
+	Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, SHEMatrixAT, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	Gfx.Device->CopyDescriptorsSimple(1, TableBaseCPU, TempSHESHCoeffUAV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	TableBaseCPU.Offset(Gfx.DescriptorSize);
+
+	CmdList->SetComputeRootDescriptorTable(0, TableBaseGPU);
+	CmdList->Dispatch(1, 1, 1);
+
+	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+    	OutSHESHCoeff, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+}
+
 static void LoadGLTFMesh(const char* FileName, FMesh& OutMesh, eastl::vector<FVertex>& InOutVertices, eastl::vector<uint32_t>& InOutIndices)
 {
 	cgltf_options Options = {};
@@ -949,9 +1216,11 @@ static void Initialize(FDemoRoot& Root)
 		float Metallic = 0.0f;
 		for (int32_t RowIdx = 0; RowIdx < NumRows; ++RowIdx)
 		{
-			float Roughness = 0.03f;
+			float Roughness;
 			for (int32_t ColumnIdx = 0; ColumnIdx < NumColumns; ++ColumnIdx)
 			{
+				Roughness = (1 - (float)ColumnIdx / (NumColumns - 1)) * 0.4f + (float)ColumnIdx / (NumColumns - 1) * 1.0f;
+
 				FStaticMeshInstance Instance = {};
 				float X = 2.2f * (-NumColumns * 0.5f + ColumnIdx + 0.5f);
 				float Y = 2.2f * (-NumRows * 0.5f + RowIdx + 0.5f);
@@ -959,9 +1228,6 @@ static void Initialize(FDemoRoot& Root)
 				Instance.MeshIndex = 1;
 				Instance.Roughness = Roughness;
 				Instance.Metallic = Metallic;
-
-				Roughness += 1.0f / NumColumns;
-				Roughness = XMMin(Roughness, 1.0f);
 
 				Root.StaticMeshInstances.push_back(Instance);
 			}
@@ -1039,6 +1305,21 @@ static void Initialize(FDemoRoot& Root)
 	Gfx.CmdList->SetPipelineState(Root.Pipelines[PSO_GenerateBRDFIntegrationMap]);
 	Gfx.CmdList->SetComputeRootSignature(Root.RootSignatures[PSO_GenerateBRDFIntegrationMap]);
 	CreateBRDFIntegrationMap(Gfx, Root.BRDFIntegrationMap, Root.BRDFIntegrationMapSRV, TempResources);
+
+	// SHE Build.
+	Gfx.CmdList->SetPipelineState(Root.Pipelines[PSO_SHE_Build]);
+	Gfx.CmdList->SetComputeRootSignature(Root.RootSignatures[PSO_SHE_Build]);
+	SHEBuild(Gfx, Root.SHEMatrixA, Root.SHEMatrixb, Root.SHEMatrixASRV, Root.SHEMatrixbSRV, Root.EnvMapSRV);
+
+	// SHE Reduction.
+	Gfx.CmdList->SetPipelineState(Root.Pipelines[PSO_SHE_Reduction]);
+	Gfx.CmdList->SetComputeRootSignature(Root.RootSignatures[PSO_SHE_Reduction]);
+	SHEReduction(Root, Gfx, Root.SHEMatrixAT, Root.SHEMatrixATSRV, Root.SHEMatrixASRV, Root.SHEMatrixbSRV, TempResources);
+
+	// SHE Solve.
+	Gfx.CmdList->SetPipelineState(Root.Pipelines[PSO_SHE_Solve]);
+	Gfx.CmdList->SetComputeRootSignature(Root.RootSignatures[PSO_SHE_Solve]);
+	SHESolve(Gfx, Root.SHESHCoeff, Root.SHESHCoeffSRV, Root.SHEMatrixATSRV);
 
 	// Setup resources for MSAA.
 	{
@@ -1119,6 +1400,8 @@ static void Initialize(FDemoRoot& Root)
 
 	Root.LastIBLMode = Root.IBLMode = Root.LastMaterialMode = Root.MaterialMode = 0;
 	Root.NumFrames = 0;
+
+	Root.SHEBias = 2.5f;
 }
 
 static void Shutdown(FDemoRoot& Root)
