@@ -2,16 +2,16 @@
 #include "Common.hlsli"
 #include "SHE_Math.hlsli"
 
-#define GRootSignature                                                                                     \
-	"RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT), "                                                      \
-	"CBV(b0), "                                                                                            \
+#define GRootSignature                                                                                                       \
+	"RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT), "                                                                        \
+	"CBV(b0), "                                                                                                              \
 	"DescriptorTable(CBV(b1), SRV(t0), SRV(t1), SRV(t2), SRV(t3), SRV(t4), SRV(t5), visibility = SHADER_VISIBILITY_PIXEL), " \
-	"StaticSampler("                                                                                       \
-	"s0, "                                                                                                 \
-	"filter = FILTER_MIN_MAG_MIP_LINEAR, "                                                                 \
-	"visibility = SHADER_VISIBILITY_PIXEL, "                                                               \
-	"addressU = TEXTURE_ADDRESS_BORDER, "                                                                  \
-	"addressV = TEXTURE_ADDRESS_BORDER, "                                                                  \
+	"StaticSampler("                                                                                                         \
+	"s0, "                                                                                                                   \
+	"filter = FILTER_MIN_MAG_MIP_LINEAR, "                                                                                   \
+	"visibility = SHADER_VISIBILITY_PIXEL, "                                                                                 \
+	"addressU = TEXTURE_ADDRESS_BORDER, "                                                                                    \
+	"addressV = TEXTURE_ADDRESS_BORDER, "                                                                                    \
 	"addressW = TEXTURE_ADDRESS_BORDER)"
 
 ConstantBuffer<FPerDrawConstantData> GPerDrawCB : register(b0);
@@ -46,11 +46,11 @@ float3 FresnelSchlickRoughness(float CosTheta, float3 F0, float Roughness)
 	OutNormalWS = mul(InNormal, (float3x3)GPerDrawCB.ObjectToWorld);
 }
 
-[RootSignature(GRootSignature)] void MainPS(
-	in float4 InPosition : SV_Position,
-	in float3 InPositionWS : _Position,
-	in float3 InNormalWS : _Normal,
-	out float4 OutColor : SV_Target0)
+	[RootSignature(GRootSignature)] void MainPS(
+		in float4 InPosition : SV_Position,
+		in float3 InPositionWS : _Position,
+		in float3 InNormalWS : _Normal,
+		out float4 OutColor : SV_Target0)
 {
 	float3 V = normalize(GPerFrameCB.ViewerPosition.xyz - InPositionWS);
 	float3 N = normalize(InNormalWS);
@@ -131,7 +131,7 @@ float3 FresnelSchlickRoughness(float CosTheta, float3 F0, float Roughness)
 		half3 coeffs[33];
 		for (int i = 0; i < 33; i++)
 		{
-    		coeffs[i] = GSHESHCoeff[i];
+			coeffs[i] = GSHESHCoeff[i];
 		}
 
 		P.R.V0 = half4(coeffs[0].r, coeffs[1].r, coeffs[2].r, coeffs[3].r);
@@ -181,25 +181,29 @@ float3 FresnelSchlickRoughness(float CosTheta, float3 F0, float Roughness)
 	}
 	else if (GPerFrameCB.IBLMode == IBL_MODE_REFERENCE)
 	{
-		uint NumSamples = 128;
+		uint NumSamples = 64;
 		float3 Irradiance = 0.0f;
 
 		for (uint DiffuseSampleIdx = 0; DiffuseSampleIdx < NumSamples; ++DiffuseSampleIdx)
 		{
-			float2 Xi = HaltonSequence2D(DiffuseSampleIdx + GPerFrameCB.NumFrames * NumSamples);
+			uint finalSeed = HashPixelAndSample(uint2(InPosition.xy),
+												DiffuseSampleIdx + GPerFrameCB.NumFrames * NumSamples);
+			float2 Xi = HaltonSequence2D(finalSeed);
 			float3 L = CosineSampleHemisphere(Xi, N);
 
 			float NoL = saturate(dot(N, L));
 			if (NoL > 0.0f)
 			{
 				// Standard way of cosine importance sampling, no need to multiply by NoL.
-				Irradiance += GEnvMap.SampleLevel(GSampler, L, 0).rgb;
+				Irradiance += GEnvMap.SampleLevel(GSampler, L, log2(256 * Roughness)).rgb;
 			}
 		}
 
 		for (uint SpecularSampleIdx = 0; SpecularSampleIdx < NumSamples; ++SpecularSampleIdx)
 		{
-			float2 Xi = HaltonSequence2D(SpecularSampleIdx + GPerFrameCB.NumFrames * NumSamples);
+			uint finalSeed = HashPixelAndSample(uint2(InPosition.xy),
+												SpecularSampleIdx + GPerFrameCB.NumFrames * NumSamples);
+			float2 Xi = HaltonSequence2D(finalSeed);
 			float3 H = ImportanceSampleGGX(Xi, Roughness, N);
 			float3 L = normalize(2.0f * dot(V, H) * H - V);
 
@@ -209,7 +213,7 @@ float3 FresnelSchlickRoughness(float CosTheta, float3 F0, float Roughness)
 
 			if (NoL > 0.0f)
 			{
-				float3 Li = GEnvMap.SampleLevel(GSampler, L, 0).rgb;
+				float3 Li = GEnvMap.SampleLevel(GSampler, L, log2(256 * Roughness)).rgb;
 				float G = GeometrySmith(NoL, NoV, Roughness);
 				float G_Vis = G * VoH / (NoH * NoV);
 				Specular += Li * F * G_Vis * NoL;

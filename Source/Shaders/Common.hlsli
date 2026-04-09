@@ -2,6 +2,14 @@
 
 #define PI 3.14159265359f
 
+uint HashPixelAndSample(uint2 pixelCoord, uint sampleIndex)
+{
+	uint hash = sampleIndex;
+	hash ^= pixelCoord.x * 0x9e3779b9u;
+	hash ^= pixelCoord.y * 0xbf4b82a3u;
+	return hash;
+}
+
 float RadicalInverse_VdC(uint Bits)
 {
 	Bits = (Bits << 16u) | (Bits >> 16u);
@@ -19,25 +27,25 @@ float2 Hammersley(uint Idx, uint N)
 
 float HaltonSequence(uint Index, uint Base)
 {
-    float F = 1.0;
-    float Result = 0.0;
-    
-    uint I = Index;
-    while (I > 0)
-    {
-        F /= Base; 
-        Result += F * (I % Base);
-        I = I / Base;                
-    }
-    
-    return Result;
+	float F = 1.0;
+	float Result = 0.0;
+
+	uint I = Index;
+	while (I > 0)
+	{
+		F /= Base;
+		Result += F * (I % Base);
+		I = I / Base;
+	}
+
+	return Result;
 }
 
 float2 HaltonSequence2D(uint Index)
 {
-    float X = HaltonSequence(Index, 2);
-    float Y = HaltonSequence(Index, 3);
-    return float2(X, Y);
+	float X = HaltonSequence(Index, 2);
+	float Y = HaltonSequence(Index, 3);
+	return float2(X, Y);
 }
 
 // Based on: [Clarberg 2008, "Fast Equal-Area Mapping of the (Hemi)Sphere using SIMD"]
@@ -55,8 +63,7 @@ float3 EquiAreaSphericalMapping(float2 UV)
 	return float3(
 		F * sign(UV.x) * abs(cos(Phi)),
 		F * sign(UV.y) * abs(sin(Phi)),
-		sign(D) * (1 - R * R)
-	);
+		sign(D) * (1 - R * R));
 }
 
 float3 CosineSampleHemisphere(float2 Xi, float3 N)
@@ -80,20 +87,20 @@ float3 CosineSampleHemisphere(float2 Xi, float3 N)
 
 float3 UniformSampleHemisphere(float2 Xi, float3 N)
 {
-    float Phi = 2.0f * PI * Xi.x;
-    float CosTheta = Xi.y;
-    float SinTheta = sqrt(1.0f - CosTheta * CosTheta);
+	float Phi = 2.0f * PI * Xi.x;
+	float CosTheta = Xi.y;
+	float SinTheta = sqrt(1.0f - CosTheta * CosTheta);
 
-    float3 H;
-    H.x = SinTheta * cos(Phi);
-    H.y = SinTheta * sin(Phi);
-    H.z = CosTheta;
+	float3 H;
+	H.x = SinTheta * cos(Phi);
+	H.y = SinTheta * sin(Phi);
+	H.z = CosTheta;
 
-    float3 UpVector = abs(N.z) < 0.999f ? float3(0.0f, 0.0f, 1.0f) : float3(1.0f, 0.0f, 0.0f);
-    float3 TangentX = normalize(cross(UpVector, N));
-    float3 TangentY = cross(N, TangentX);
+	float3 UpVector = abs(N.z) < 0.999f ? float3(0.0f, 0.0f, 1.0f) : float3(1.0f, 0.0f, 0.0f);
+	float3 TangentX = normalize(cross(UpVector, N));
+	float3 TangentY = cross(N, TangentX);
 
-    return TangentX * H.x + TangentY * H.y + N * H.z;
+	return TangentX * H.x + TangentY * H.y + N * H.z;
 }
 
 float3 ImportanceSampleGGX(float2 Xi, float Roughness, float3 N)

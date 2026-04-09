@@ -13,12 +13,23 @@
 
 enum
 {
-	MESH_Cube, MESH_Sphere,
+	MESH_Cube,
+	MESH_Sphere,
 };
 
 enum
 {
-	PSO_Test, PSO_SimpleForward, PSO_SampleEnvMap, PSO_EquirectangularToCube, PSO_GenerateIrradianceMap, PSO_PrefilterEnvMap, PSO_GenerateBRDFIntegrationMap, PSO_SHE_Build, PSO_SHE_Reduction, PSO_SHE_Reduction_Merge, PSO_SHE_Solve,
+	PSO_Test,
+	PSO_SimpleForward,
+	PSO_SampleEnvMap,
+	PSO_EquirectangularToCube,
+	PSO_GenerateIrradianceMap,
+	PSO_PrefilterEnvMap,
+	PSO_GenerateBRDFIntegrationMap,
+	PSO_SHE_Build,
+	PSO_SHE_Reduction,
+	PSO_SHE_Reduction_Merge,
+	PSO_SHE_Solve,
 };
 
 struct FVertex
@@ -63,22 +74,22 @@ struct FDemoRoot
 	FUIContext UI;
 	eastl::vector<FStaticMesh> StaticMeshes;
 	eastl::vector<FStaticMeshInstance> StaticMeshInstances;
-	eastl::vector<ID3D12PipelineState*> Pipelines;
-	eastl::vector<ID3D12RootSignature*> RootSignatures;
-	ID3D12Resource* StaticVB;
-	ID3D12Resource* StaticIB;
+	eastl::vector<ID3D12PipelineState *> Pipelines;
+	eastl::vector<ID3D12RootSignature *> RootSignatures;
+	ID3D12Resource *StaticVB;
+	ID3D12Resource *StaticIB;
 	D3D12_VERTEX_BUFFER_VIEW StaticVBView;
 	D3D12_INDEX_BUFFER_VIEW StaticIBView;
 	XMFLOAT3 CameraPosition;
 	XMFLOAT3 CameraFocusPosition;
-	ID3D12Resource* EnvMap;
-	ID3D12Resource* IrradianceMap;
-	ID3D12Resource* PrefilteredEnvMap;
-	ID3D12Resource* BRDFIntegrationMap;
-	ID3D12Resource* SHEMatrixA;
-	ID3D12Resource* SHEMatrixb;
-	ID3D12Resource* SHEMatrixAT;
-	ID3D12Resource* SHESHCoeff;
+	ID3D12Resource *EnvMap;
+	ID3D12Resource *IrradianceMap;
+	ID3D12Resource *PrefilteredEnvMap;
+	ID3D12Resource *BRDFIntegrationMap;
+	ID3D12Resource *SHEMatrixA;
+	ID3D12Resource *SHEMatrixb;
+	ID3D12Resource *SHEMatrixAT;
+	ID3D12Resource *SHESHCoeff;
 	D3D12_CPU_DESCRIPTOR_HANDLE EnvMapSRV;
 	D3D12_CPU_DESCRIPTOR_HANDLE IrradianceMapSRV;
 	D3D12_CPU_DESCRIPTOR_HANDLE PrefilteredEnvMapSRV;
@@ -88,9 +99,9 @@ struct FDemoRoot
 	D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixbSRV;
 	D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixATSRV;
 	D3D12_CPU_DESCRIPTOR_HANDLE SHESHCoeffSRV;
-	ID3D12Resource* MSColorBuffer;
-	ID3D12Resource* MSDepthBuffer;
-	ID3D12Resource* AccumulationBuffer;
+	ID3D12Resource *MSColorBuffer;
+	ID3D12Resource *MSDepthBuffer;
+	ID3D12Resource *AccumulationBuffer;
 	D3D12_CPU_DESCRIPTOR_HANDLE MSColorBufferRTV;
 	D3D12_CPU_DESCRIPTOR_HANDLE MSDepthBufferDSV;
 	int LastMaterialMode;
@@ -101,9 +112,9 @@ struct FDemoRoot
 	uint32_t NumFrames;
 };
 
-static void UpdateUI(FDemoRoot& Root, float DeltaTime)
+static void UpdateUI(FDemoRoot &Root, float DeltaTime)
 {
-	ImGuiIO& IO = ImGui::GetIO();
+	ImGuiIO &IO = ImGui::GetIO();
 	IO.KeyCtrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
 	IO.KeyShift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
 	IO.KeyAlt = (GetKeyState(VK_MENU) & 0x8000) != 0;
@@ -117,14 +128,14 @@ static void UpdateUI(FDemoRoot& Root, float DeltaTime)
 	{
 		Root.LastMaterialMode = Root.MaterialMode;
 		ImGui::Text("Material Mode");
-		const char* items[] = { "Diffuse + Specular", "Diffuse Only", "Specular Only" };
+		const char *items[] = {"Diffuse + Specular", "Diffuse Only", "Specular Only"};
 		ImGui::Combo("##MaterialMode", &(Root.MaterialMode), items, IM_ARRAYSIZE(items));
 	}
 
 	{
 		Root.LastIBLMode = Root.IBLMode;
 		ImGui::Text("IBL Mode");
-		const char* items[] = { "Split Sum Approximation", "Spherical Harmonics Exponential (Specular Only)", "Reference" };
+		const char *items[] = {"Split Sum Approximation", "Spherical Harmonics Exponential (Specular Only)", "Reference"};
 		ImGui::Combo("##IBLMode", &(Root.IBLMode), items, IM_ARRAYSIZE(items));
 	}
 
@@ -134,13 +145,12 @@ static void UpdateUI(FDemoRoot& Root, float DeltaTime)
 			ImGui::Text("SHE Bias");
 			ImGui::SliderFloat("##SHEBias", &Root.SHEBias, 0.0f, 10.0f);
 		}
-		
 	}
 
 	ImGui::End();
 }
 
-static void Update(FDemoRoot& Root)
+static void Update(FDemoRoot &Root)
 {
 	double Time;
 	float DeltaTime;
@@ -154,19 +164,19 @@ static void Update(FDemoRoot& Root)
 	//	XMStoreFloat3(&Root.CameraPosition, Position);
 	//}
 
-	//ImGui::ShowDemoWindow();
+	// ImGui::ShowDemoWindow();
 }
 
-static void Draw(FDemoRoot& Root)
+static void Draw(FDemoRoot &Root)
 {
-	FGraphicsContext& Gfx = Root.Gfx;
-	ID3D12GraphicsCommandList2* CmdList = GetAndInitCommandList(Gfx);
+	FGraphicsContext &Gfx = Root.Gfx;
+	ID3D12GraphicsCommandList2 *CmdList = GetAndInitCommandList(Gfx);
 
 	CmdList->RSSetViewports(1, get_rvalue_ptr(CD3DX12_VIEWPORT(0.0f, 0.0f, (float)Gfx.Resolution[0], (float)Gfx.Resolution[1])));
 	CmdList->RSSetScissorRects(1, get_rvalue_ptr(CD3DX12_RECT(0, 0, (LONG)Gfx.Resolution[0], (LONG)Gfx.Resolution[1])));
 
 	CmdList->OMSetRenderTargets(1, &Root.MSColorBufferRTV, TRUE, &Root.MSDepthBufferDSV);
-	CmdList->ClearRenderTargetView(Root.MSColorBufferRTV, XMVECTORF32{ 0.0f }, 0, nullptr);
+	CmdList->ClearRenderTargetView(Root.MSColorBufferRTV, XMVECTORF32{0.0f}, 0, nullptr);
 	CmdList->ClearDepthStencilView(Root.MSDepthBufferDSV, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -191,7 +201,7 @@ static void Draw(FDemoRoot& Root)
 
 		Gfx.Device->CreateUnorderedAccessView(Root.AccumulationBuffer, nullptr, &AccumulationBufferUAVDesc, AccumulationBufferUAV);
 
-		float clearColor[4] = {0,0,0,0};
+		float clearColor[4] = {0, 0, 0, 0};
 		CmdList->ClearUnorderedAccessViewFloat(CopyDescriptorsToGPUHeap(Gfx, 1, AccumulationBufferUAV), AccumulationBufferUAV, Root.AccumulationBuffer, clearColor, 0, nullptr);
 	}
 
@@ -203,7 +213,7 @@ static void Draw(FDemoRoot& Root)
 		// Per-frame constant data.
 		{
 			D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
-			auto* CPUAddress = (FPerFrameConstantData*)AllocateGPUMemory(Gfx, sizeof(FPerFrameConstantData), GPUAddress);
+			auto *CPUAddress = (FPerFrameConstantData *)AllocateGPUMemory(Gfx, sizeof(FPerFrameConstantData), GPUAddress);
 
 			CPUAddress->LightPositions[0] = XMFLOAT4(-10.0f, 10.0f, -10.0f, 1.0f);
 			CPUAddress->LightPositions[1] = XMFLOAT4(10.0f, 10.0f, -10.0f, 1.0f);
@@ -257,14 +267,14 @@ static void Draw(FDemoRoot& Root)
 		const auto NumMeshInstances = (uint32_t)Root.StaticMeshInstances.size();
 
 		D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
-		auto* CPUAddress = (FPerDrawConstantData*)AllocateGPUMemory(Gfx, NumMeshInstances * sizeof(FPerDrawConstantData), GPUAddress);
+		auto *CPUAddress = (FPerDrawConstantData *)AllocateGPUMemory(Gfx, NumMeshInstances * sizeof(FPerDrawConstantData), GPUAddress);
 
 		const XMMATRIX WorldToClip = ViewTransform * ProjectionTransform;
 
 		for (uint32_t MeshInstIdx = 0; MeshInstIdx < NumMeshInstances; ++MeshInstIdx)
 		{
-			const FStaticMeshInstance& MeshInst = Root.StaticMeshInstances[MeshInstIdx];
-			const FStaticMesh& Mesh = Root.StaticMeshes[MeshInst.MeshIndex];
+			const FStaticMeshInstance &MeshInst = Root.StaticMeshInstances[MeshInstIdx];
+			const FStaticMesh &Mesh = Root.StaticMeshes[MeshInst.MeshIndex];
 
 			const XMMATRIX ObjectToWorld =
 				XMMatrixRotationRollPitchYaw(MeshInst.Rotation.x, MeshInst.Rotation.y, MeshInst.Rotation.z) *
@@ -273,9 +283,9 @@ static void Draw(FDemoRoot& Root)
 			XMStoreFloat4x4(&CPUAddress->ObjectToClip, XMMatrixTranspose(ObjectToWorld * WorldToClip));
 			{
 				const XMMATRIX ObjectToWorldT = XMMatrixTranspose(ObjectToWorld);
-				XMStoreFloat4((XMFLOAT4*)& CPUAddress->ObjectToWorld, ObjectToWorldT.r[0]);
-				XMStoreFloat4((XMFLOAT4*)& CPUAddress->ObjectToWorld + 1, ObjectToWorldT.r[1]);
-				XMStoreFloat4((XMFLOAT4*)& CPUAddress->ObjectToWorld + 2, ObjectToWorldT.r[2]);
+				XMStoreFloat4((XMFLOAT4 *)&CPUAddress->ObjectToWorld, ObjectToWorldT.r[0]);
+				XMStoreFloat4((XMFLOAT4 *)&CPUAddress->ObjectToWorld + 1, ObjectToWorldT.r[1]);
+				XMStoreFloat4((XMFLOAT4 *)&CPUAddress->ObjectToWorld + 2, ObjectToWorldT.r[2]);
 			}
 
 			CPUAddress->Albedo = XMFLOAT3(0.5f, 0.0f, 0.0f);
@@ -291,6 +301,27 @@ static void Draw(FDemoRoot& Root)
 		}
 	}
 
+	// Draw EnvMap.
+	{
+		CmdList->SetPipelineState(Root.Pipelines[PSO_SampleEnvMap]);
+		CmdList->SetGraphicsRootSignature(Root.RootSignatures[PSO_SampleEnvMap]);
+
+		D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
+		auto *CPUAddress = (FPerDrawConstantData *)AllocateGPUMemory(Gfx, sizeof(FPerDrawConstantData), GPUAddress);
+
+		XMMATRIX ViewTransformOrigin = ViewTransform;
+		ViewTransformOrigin.r[3] = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+
+		const XMMATRIX ObjectToClip = ViewTransformOrigin * ProjectionTransform;
+		XMStoreFloat4x4(&CPUAddress->ObjectToClip, XMMatrixTranspose(ObjectToClip));
+
+		const FStaticMesh &Mesh = Root.StaticMeshes[MESH_Cube];
+
+		CmdList->SetGraphicsRootConstantBufferView(0, GPUAddress);
+		CmdList->SetGraphicsRootDescriptorTable(1, CopyDescriptorsToGPUHeap(Gfx, 1, Root.EnvMapSRV));
+		CmdList->DrawIndexedInstanced(Mesh.IndexCount, 1, Mesh.StartIndexLocation, Mesh.BaseVertexLocation, 0);
+	}
+
 	// Copy color buffer to accumulation buffer.
 	{
 		CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(Root.AccumulationBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST)));
@@ -300,40 +331,18 @@ static void Draw(FDemoRoot& Root)
 		CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(Root.MSColorBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)));
 	}
 
-	// Draw EnvMap.
-	{
-		CmdList->SetPipelineState(Root.Pipelines[PSO_SampleEnvMap]);
-		CmdList->SetGraphicsRootSignature(Root.RootSignatures[PSO_SampleEnvMap]);
-
-		D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
-		auto* CPUAddress = (FPerDrawConstantData*)AllocateGPUMemory(Gfx, sizeof(FPerDrawConstantData), GPUAddress);
-
-		XMMATRIX ViewTransformOrigin = ViewTransform;
-		ViewTransformOrigin.r[3] = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-
-		const XMMATRIX ObjectToClip = ViewTransformOrigin * ProjectionTransform;
-		XMStoreFloat4x4(&CPUAddress->ObjectToClip, XMMatrixTranspose(ObjectToClip));
-
-		const FStaticMesh& Mesh = Root.StaticMeshes[MESH_Cube];
-
-		CmdList->SetGraphicsRootConstantBufferView(0, GPUAddress);
-		CmdList->SetGraphicsRootDescriptorTable(1, CopyDescriptorsToGPUHeap(Gfx, 1, Root.EnvMapSRV));
-		CmdList->DrawIndexedInstanced(Mesh.IndexCount, 1, Mesh.StartIndexLocation, Mesh.BaseVertexLocation, 0);
-	}
-
 	DrawUI(Gfx, Root.UI);
 
 	// Resolve MS color buffer and copy it to back buffer.
 	{
-		ID3D12Resource* BackBuffer;
+		ID3D12Resource *BackBuffer;
 		D3D12_CPU_DESCRIPTOR_HANDLE BackBufferRTV;
 		GetBackBuffer(Gfx, BackBuffer, BackBufferRTV);
 
 		D3D12_RESOURCE_BARRIER Barriers[2] =
-		{
-			CD3DX12_RESOURCE_BARRIER::Transition(BackBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST),
-			CD3DX12_RESOURCE_BARRIER::Transition(Root.MSColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE)
-		};
+			{
+				CD3DX12_RESOURCE_BARRIER::Transition(BackBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST),
+				CD3DX12_RESOURCE_BARRIER::Transition(Root.MSColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE)};
 		CmdList->ResourceBarrier((UINT)eastl::size(Barriers), Barriers);
 
 		CmdList->ResolveSubresource(BackBuffer, 0, Root.MSColorBuffer, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -348,7 +357,7 @@ static void Draw(FDemoRoot& Root)
 	Gfx.CmdQueue->ExecuteCommandLists(1, CommandListCast(&CmdList));
 }
 
-static void AddGraphicsPipeline(FGraphicsContext& Gfx, D3D12_GRAPHICS_PIPELINE_STATE_DESC& PSODesc, const char* VSName, const char* PSName, eastl::vector<ID3D12PipelineState*>& OutPipelines, eastl::vector<ID3D12RootSignature*>& OutSignatures)
+static void AddGraphicsPipeline(FGraphicsContext &Gfx, D3D12_GRAPHICS_PIPELINE_STATE_DESC &PSODesc, const char *VSName, const char *PSName, eastl::vector<ID3D12PipelineState *> &OutPipelines, eastl::vector<ID3D12RootSignature *> &OutSignatures)
 {
 	char Path[MAX_PATH];
 
@@ -358,51 +367,51 @@ static void AddGraphicsPipeline(FGraphicsContext& Gfx, D3D12_GRAPHICS_PIPELINE_S
 	EA::StdC::Snprintf(Path, sizeof(Path), "Data/Shaders/%s", PSName);
 	eastl::vector<uint8_t> PSBytecode = LoadFile(Path);
 
-	ID3D12RootSignature* RootSignature;
+	ID3D12RootSignature *RootSignature;
 	VHR(Gfx.Device->CreateRootSignature(0, VSBytecode.data(), VSBytecode.size(), IID_PPV_ARGS(&RootSignature)));
 
 	PSODesc.pRootSignature = RootSignature;
-	PSODesc.VS = { VSBytecode.data(), VSBytecode.size() };
-	PSODesc.PS = { PSBytecode.data(), PSBytecode.size() };
+	PSODesc.VS = {VSBytecode.data(), VSBytecode.size()};
+	PSODesc.PS = {PSBytecode.data(), PSBytecode.size()};
 
-	ID3D12PipelineState* Pipeline;
+	ID3D12PipelineState *Pipeline;
 	VHR(Gfx.Device->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&Pipeline)));
 	OutPipelines.push_back(Pipeline);
 	OutSignatures.push_back(RootSignature);
 }
 
-static void AddComputePipeline(FGraphicsContext& Gfx, const char* CSName, eastl::vector<ID3D12PipelineState*>& OutPipelines, eastl::vector<ID3D12RootSignature*>& OutSignatures)
+static void AddComputePipeline(FGraphicsContext &Gfx, const char *CSName, eastl::vector<ID3D12PipelineState *> &OutPipelines, eastl::vector<ID3D12RootSignature *> &OutSignatures)
 {
 	char Path[MAX_PATH];
 
 	EA::StdC::Snprintf(Path, sizeof(Path), "Data/Shaders/%s", CSName);
 	eastl::vector<uint8_t> CSBytecode = LoadFile(Path);
 
-	ID3D12RootSignature* RootSignature;
+	ID3D12RootSignature *RootSignature;
 	VHR(Gfx.Device->CreateRootSignature(0, CSBytecode.data(), CSBytecode.size(), IID_PPV_ARGS(&RootSignature)));
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC PSODesc = {};
 	PSODesc.pRootSignature = RootSignature;
-	PSODesc.CS = { CSBytecode.data(), CSBytecode.size() };
+	PSODesc.CS = {CSBytecode.data(), CSBytecode.size()};
 
-	ID3D12PipelineState* Pipeline;
+	ID3D12PipelineState *Pipeline;
 	VHR(Gfx.Device->CreateComputePipelineState(&PSODesc, IID_PPV_ARGS(&Pipeline)));
 	OutPipelines.push_back(Pipeline);
 	OutSignatures.push_back(RootSignature);
 }
 
-static void CreatePipelines(FGraphicsContext& Gfx, uint32_t NumSamples, eastl::vector<ID3D12PipelineState*>& OutPipelines, eastl::vector<ID3D12RootSignature*>& OutSignatures)
+static void CreatePipelines(FGraphicsContext &Gfx, uint32_t NumSamples, eastl::vector<ID3D12PipelineState *> &OutPipelines, eastl::vector<ID3D12RootSignature *> &OutSignatures)
 {
 	const D3D12_INPUT_ELEMENT_DESC InPositionNormal[] =
-	{
-		{ "_Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "_Normal", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-	};
+		{
+			{"_Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"_Normal", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		};
 
 	// Test pipeline.
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
-		PSODesc.InputLayout = { InPositionNormal, (UINT)eastl::size(InPositionNormal) };
+		PSODesc.InputLayout = {InPositionNormal, (UINT)eastl::size(InPositionNormal)};
 		PSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		PSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		PSODesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -418,7 +427,7 @@ static void CreatePipelines(FGraphicsContext& Gfx, uint32_t NumSamples, eastl::v
 	// SimpleForward pipeline.
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
-		PSODesc.InputLayout = { InPositionNormal, (UINT)eastl::size(InPositionNormal) };
+		PSODesc.InputLayout = {InPositionNormal, (UINT)eastl::size(InPositionNormal)};
 		PSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 		PSODesc.RasterizerState.MultisampleEnable = NumSamples > 1 ? TRUE : FALSE;
@@ -436,7 +445,7 @@ static void CreatePipelines(FGraphicsContext& Gfx, uint32_t NumSamples, eastl::v
 	// EnvMap pipeline.
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
-		PSODesc.InputLayout = { InPositionNormal, (UINT)eastl::size(InPositionNormal) };
+		PSODesc.InputLayout = {InPositionNormal, (UINT)eastl::size(InPositionNormal)};
 		PSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 		PSODesc.RasterizerState.MultisampleEnable = NumSamples > 1 ? TRUE : FALSE;
@@ -456,7 +465,7 @@ static void CreatePipelines(FGraphicsContext& Gfx, uint32_t NumSamples, eastl::v
 	// EquirectangularToCube, GenerateIrradianceMap, PrefilterEnvMap pipelines.
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
-		PSODesc.InputLayout = { InPositionNormal, (UINT)eastl::size(InPositionNormal) };
+		PSODesc.InputLayout = {InPositionNormal, (UINT)eastl::size(InPositionNormal)};
 		PSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 		PSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
@@ -494,7 +503,7 @@ static void CreatePipelines(FGraphicsContext& Gfx, uint32_t NumSamples, eastl::v
 	AddComputePipeline(Gfx, "SHE_Solve.cs.cso", OutPipelines, OutSignatures);
 }
 
-static void CreateEnvMap(FGraphicsContext& Gfx, const FStaticMesh& Cube, ID3D12Resource*& OutEnvMap, D3D12_CPU_DESCRIPTOR_HANDLE& OutEnvMapSRV, eastl::vector<ID3D12Resource*>& OutTempResources)
+static void CreateEnvMap(FGraphicsContext &Gfx, const FStaticMesh &Cube, ID3D12Resource *&OutEnvMap, D3D12_CPU_DESCRIPTOR_HANDLE &OutEnvMapSRV, eastl::vector<ID3D12Resource *> &OutTempResources)
 {
 	int Width, Height;
 	D3D12_SUBRESOURCE_DATA ImageData = {};
@@ -504,7 +513,7 @@ static void CreateEnvMap(FGraphicsContext& Gfx, const FStaticMesh& Cube, ID3D12R
 	ImageData.RowPitch = Width * sizeof(XMFLOAT3);
 	EA_ASSERT(ImageData.pData);
 
-	ID3D12Resource* TempHDRRectTexture;
+	ID3D12Resource *TempHDRRectTexture;
 	D3D12_CPU_DESCRIPTOR_HANDLE TempHDRRectTextureSRV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	{
 		const auto Desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32_FLOAT, Width, Height, 1, 1);
@@ -514,7 +523,7 @@ static void CreateEnvMap(FGraphicsContext& Gfx, const FStaticMesh& Cube, ID3D12R
 		Gfx.Device->CreateShaderResourceView(TempHDRRectTexture, nullptr, TempHDRRectTextureSRV);
 	}
 
-	ID3D12Resource* StagingBuffer;
+	ID3D12Resource *StagingBuffer;
 	{
 		const auto BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(GetRequiredIntermediateSize(TempHDRRectTexture, 0, 1));
 		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD)), D3D12_HEAP_FLAG_NONE, &BufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&StagingBuffer)));
@@ -522,7 +531,7 @@ static void CreateEnvMap(FGraphicsContext& Gfx, const FStaticMesh& Cube, ID3D12R
 	}
 
 	const uint32_t CubeMapResolution = 512;
-	ID3D12Resource* TempCubeMap;
+	ID3D12Resource *TempCubeMap;
 	const D3D12_CPU_DESCRIPTOR_HANDLE TempCubeMapRTVs = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 6);
 	{
 		auto Desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R16G16B16A16_FLOAT, CubeMapResolution, CubeMapResolution, 6);
@@ -535,7 +544,6 @@ static void CreateEnvMap(FGraphicsContext& Gfx, const FStaticMesh& Cube, ID3D12R
 		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		SRVDesc.TextureCube.MipLevels = (uint32_t)-1;
 		Gfx.Device->CreateShaderResourceView(OutEnvMap, &SRVDesc, OutEnvMapSRV);
-
 
 		Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_RENDER_TARGET, nullptr, IID_PPV_ARGS(&TempCubeMap)));
@@ -555,35 +563,32 @@ static void CreateEnvMap(FGraphicsContext& Gfx, const FStaticMesh& Cube, ID3D12R
 		}
 	}
 
-	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
+	ID3D12GraphicsCommandList2 *CmdList = Gfx.CmdList;
 
 	UpdateSubresources<1>(CmdList, TempHDRRectTexture, StagingBuffer, 0, 0, 1, &ImageData);
 
-	stbi_image_free((void*)ImageData.pData);
+	stbi_image_free((void *)ImageData.pData);
 
 	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(TempHDRRectTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
-
 
 	CmdList->RSSetViewports(1, get_rvalue_ptr(CD3DX12_VIEWPORT(0.0f, 0.0f, (float)CubeMapResolution, (float)CubeMapResolution)));
 	CmdList->RSSetScissorRects(1, get_rvalue_ptr(CD3DX12_RECT(0, 0, CubeMapResolution, CubeMapResolution)));
 
 	CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-
 	const XMMATRIX ViewTransforms[6] =
-	{
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(-1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-	};
+		{
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(-1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+		};
 	const XMMATRIX ProjectionTransform = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1.0f, 0.1f, 10.0f);
 
-
 	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
-	auto* CPUAddress = (FPerDrawConstantData*)AllocateGPUMemory(Gfx, 6 * sizeof(FPerDrawConstantData), GPUAddress);
+	auto *CPUAddress = (FPerDrawConstantData *)AllocateGPUMemory(Gfx, 6 * sizeof(FPerDrawConstantData), GPUAddress);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE RTV = TempCubeMapRTVs;
 
@@ -610,10 +615,10 @@ static void CreateEnvMap(FGraphicsContext& Gfx, const FStaticMesh& Cube, ID3D12R
 	Gfx.CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(OutEnvMap, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
-static void CreateIrradianceMap(FGraphicsContext& Gfx, D3D12_CPU_DESCRIPTOR_HANDLE EnvMapSRV, const FStaticMesh& Cube, ID3D12Resource*& OutIrradianceMap, D3D12_CPU_DESCRIPTOR_HANDLE& OutIrradianceMapSRV, eastl::vector<ID3D12Resource*>& OutTempResources)
+static void CreateIrradianceMap(FGraphicsContext &Gfx, D3D12_CPU_DESCRIPTOR_HANDLE EnvMapSRV, const FStaticMesh &Cube, ID3D12Resource *&OutIrradianceMap, D3D12_CPU_DESCRIPTOR_HANDLE &OutIrradianceMapSRV, eastl::vector<ID3D12Resource *> &OutTempResources)
 {
 	const uint32_t CubeMapResolution = 64;
-	ID3D12Resource* TempCubeMap;
+	ID3D12Resource *TempCubeMap;
 	const D3D12_CPU_DESCRIPTOR_HANDLE TempCubeMapRTVs = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 6);
 	{
 		auto Desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R16G16B16A16_FLOAT, CubeMapResolution, CubeMapResolution, 6);
@@ -626,7 +631,6 @@ static void CreateIrradianceMap(FGraphicsContext& Gfx, D3D12_CPU_DESCRIPTOR_HAND
 		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		SRVDesc.TextureCube.MipLevels = (uint32_t)-1;
 		Gfx.Device->CreateShaderResourceView(OutIrradianceMap, &SRVDesc, OutIrradianceMapSRV);
-
 
 		Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_RENDER_TARGET, nullptr, IID_PPV_ARGS(&TempCubeMap)));
@@ -646,28 +650,26 @@ static void CreateIrradianceMap(FGraphicsContext& Gfx, D3D12_CPU_DESCRIPTOR_HAND
 		}
 	}
 
-	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
+	ID3D12GraphicsCommandList2 *CmdList = Gfx.CmdList;
 
 	CmdList->RSSetViewports(1, get_rvalue_ptr(CD3DX12_VIEWPORT(0.0f, 0.0f, (float)CubeMapResolution, (float)CubeMapResolution)));
 	CmdList->RSSetScissorRects(1, get_rvalue_ptr(CD3DX12_RECT(0, 0, CubeMapResolution, CubeMapResolution)));
 
 	CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-
 	const XMMATRIX ViewTransforms[6] =
-	{
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(-1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-	};
+		{
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(-1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+		};
 	const XMMATRIX ProjectionTransform = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1.0f, 0.1f, 10.0f);
 
-
 	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
-	auto* CPUAddress = (FPerDrawConstantData*)AllocateGPUMemory(Gfx, 6 * sizeof(FPerDrawConstantData), GPUAddress);
+	auto *CPUAddress = (FPerDrawConstantData *)AllocateGPUMemory(Gfx, 6 * sizeof(FPerDrawConstantData), GPUAddress);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE RTV = TempCubeMapRTVs;
 
@@ -694,12 +696,12 @@ static void CreateIrradianceMap(FGraphicsContext& Gfx, D3D12_CPU_DESCRIPTOR_HAND
 	Gfx.CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(OutIrradianceMap, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
-static void CreatePrefilteredEnvMap(FGraphicsContext& Gfx, D3D12_CPU_DESCRIPTOR_HANDLE EnvMapSRV, const FStaticMesh& Cube, ID3D12Resource*& OutPrefilteredEnvMap, D3D12_CPU_DESCRIPTOR_HANDLE& OutPrefilteredEnvMapSRV, eastl::vector<ID3D12Resource*>& OutTempResources)
+static void CreatePrefilteredEnvMap(FGraphicsContext &Gfx, D3D12_CPU_DESCRIPTOR_HANDLE EnvMapSRV, const FStaticMesh &Cube, ID3D12Resource *&OutPrefilteredEnvMap, D3D12_CPU_DESCRIPTOR_HANDLE &OutPrefilteredEnvMapSRV, eastl::vector<ID3D12Resource *> &OutTempResources)
 {
 	const uint32_t CubeMapResolution = 256;
 	const uint32_t NumMipLevelsUsed = 6; // 256, 128, 64, 32, 16, 8
 
-	ID3D12Resource* TempCubeMap;
+	ID3D12Resource *TempCubeMap;
 	const D3D12_CPU_DESCRIPTOR_HANDLE TempCubeMapRTVs = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 6 * NumMipLevelsUsed);
 	{
 		auto Desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R16G16B16A16_FLOAT, CubeMapResolution, CubeMapResolution, 6, NumMipLevelsUsed);
@@ -712,7 +714,6 @@ static void CreatePrefilteredEnvMap(FGraphicsContext& Gfx, D3D12_CPU_DESCRIPTOR_
 		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		SRVDesc.TextureCube.MipLevels = NumMipLevelsUsed;
 		Gfx.Device->CreateShaderResourceView(OutPrefilteredEnvMap, &SRVDesc, OutPrefilteredEnvMapSRV);
-
 
 		Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_RENDER_TARGET, nullptr, IID_PPV_ARGS(&TempCubeMap)));
@@ -737,20 +738,20 @@ static void CreatePrefilteredEnvMap(FGraphicsContext& Gfx, D3D12_CPU_DESCRIPTOR_
 	}
 
 	const XMMATRIX ViewTransforms[6] =
-	{
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(-1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-		XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
-	};
+		{
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(-1.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+			XMMatrixLookToLH(XMVectorZero(), XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)),
+		};
 	const XMMATRIX ProjectionTransform = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1.0f, 0.1f, 10.0f);
 
 	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
-	auto* CPUAddress = (FPerDrawConstantData*)AllocateGPUMemory(Gfx, 6 * NumMipLevelsUsed * sizeof(FPerDrawConstantData), GPUAddress);
+	auto *CPUAddress = (FPerDrawConstantData *)AllocateGPUMemory(Gfx, 6 * NumMipLevelsUsed * sizeof(FPerDrawConstantData), GPUAddress);
 
-	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
+	ID3D12GraphicsCommandList2 *CmdList = Gfx.CmdList;
 
 	CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -789,12 +790,12 @@ static void CreatePrefilteredEnvMap(FGraphicsContext& Gfx, D3D12_CPU_DESCRIPTOR_
 	Gfx.CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(OutPrefilteredEnvMap, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
-static void CreateBRDFIntegrationMap(FGraphicsContext& Gfx, ID3D12Resource*& OutBRDFIntegrationMap, D3D12_CPU_DESCRIPTOR_HANDLE& OutBRDFIntegrationMapSRV, eastl::vector<ID3D12Resource*>& OutTempResources)
+static void CreateBRDFIntegrationMap(FGraphicsContext &Gfx, ID3D12Resource *&OutBRDFIntegrationMap, D3D12_CPU_DESCRIPTOR_HANDLE &OutBRDFIntegrationMapSRV, eastl::vector<ID3D12Resource *> &OutTempResources)
 {
 	const uint32_t MapResolution = 512;
 	EA_ASSERT(EA::StdC::IsPowerOf2(MapResolution));
 
-	ID3D12Resource* TempTexture;
+	ID3D12Resource *TempTexture;
 	const D3D12_CPU_DESCRIPTOR_HANDLE TempTextureUAV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	{
 		auto Desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R16G16_FLOAT, MapResolution, MapResolution, 1, 1);
@@ -804,7 +805,6 @@ static void CreateBRDFIntegrationMap(FGraphicsContext& Gfx, ID3D12Resource*& Out
 
 		Gfx.Device->CreateShaderResourceView(OutBRDFIntegrationMap, nullptr, OutBRDFIntegrationMapSRV);
 
-
 		Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&TempTexture)));
 		OutTempResources.push_back(TempTexture);
@@ -812,12 +812,10 @@ static void CreateBRDFIntegrationMap(FGraphicsContext& Gfx, ID3D12Resource*& Out
 		Gfx.Device->CreateUnorderedAccessView(TempTexture, nullptr, nullptr, TempTextureUAV);
 	}
 
-	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
-
+	ID3D12GraphicsCommandList2 *CmdList = Gfx.CmdList;
 
 	CmdList->SetComputeRootDescriptorTable(0, CopyDescriptorsToGPUHeap(Gfx, 1, TempTextureUAV));
 	CmdList->Dispatch(MapResolution / 8, MapResolution / 8, 1);
-
 
 	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(TempTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE)));
 
@@ -826,7 +824,7 @@ static void CreateBRDFIntegrationMap(FGraphicsContext& Gfx, ID3D12Resource*& Out
 	Gfx.CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(OutBRDFIntegrationMap, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
-static void SHEBuild(FGraphicsContext& Gfx, ID3D12Resource*& OutSHEMatrixA, ID3D12Resource*& OutSHEMatrixb, D3D12_CPU_DESCRIPTOR_HANDLE& OutSHEMatrixASRV, D3D12_CPU_DESCRIPTOR_HANDLE& OutSHEMatrixbSRV, D3D12_CPU_DESCRIPTOR_HANDLE EnvMapSRV)
+static void SHEBuild(FGraphicsContext &Gfx, ID3D12Resource *&OutSHEMatrixA, ID3D12Resource *&OutSHEMatrixb, D3D12_CPU_DESCRIPTOR_HANDLE &OutSHEMatrixASRV, D3D12_CPU_DESCRIPTOR_HANDLE &OutSHEMatrixbSRV, D3D12_CPU_DESCRIPTOR_HANDLE EnvMapSRV)
 {
 	const uint32_t ViewCountSqrt = 8;
 	const uint32_t NormalCountSqrt = 8;
@@ -855,10 +853,10 @@ static void SHEBuild(FGraphicsContext& Gfx, ID3D12Resource*& OutSHEMatrixA, ID3D
 		Gfx.Device->CreateShaderResourceView(OutSHEMatrixb, nullptr, OutSHEMatrixbSRV);
 	}
 
-	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
+	ID3D12GraphicsCommandList2 *CmdList = Gfx.CmdList;
 
 	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
-	auto* CPUAddress = (FSHEBuildConstantData*)AllocateGPUMemory(Gfx, sizeof(FSHEBuildConstantData), GPUAddress);
+	auto *CPUAddress = (FSHEBuildConstantData *)AllocateGPUMemory(Gfx, sizeof(FSHEBuildConstantData), GPUAddress);
 
 	CPUAddress->ViewCount = ViewCount;
 	CPUAddress->NormalCount = NormalCount;
@@ -891,14 +889,14 @@ static void SHEBuild(FGraphicsContext& Gfx, ID3D12Resource*& OutSHEMatrixA, ID3D
 	CmdList->Dispatch(8, 8, 4);
 
 	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
-    	OutSHEMatrixA, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+									OutSHEMatrixA, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 
 	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
-    	OutSHEMatrixb, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+									OutSHEMatrixb, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
-static void SHEReduction(FDemoRoot& Root, FGraphicsContext& Gfx, ID3D12Resource*& OutSHEMatrixAT, D3D12_CPU_DESCRIPTOR_HANDLE& OutSHEMatrixATSRV, D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixASRV, D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixbSRV,
-	eastl::vector<ID3D12Resource*>& OutTempResources)
+static void SHEReduction(FDemoRoot &Root, FGraphicsContext &Gfx, ID3D12Resource *&OutSHEMatrixAT, D3D12_CPU_DESCRIPTOR_HANDLE &OutSHEMatrixATSRV, D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixASRV, D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixbSRV,
+						 eastl::vector<ID3D12Resource *> &OutTempResources)
 {
 	const uint32_t ViewCountSqrt = 8;
 	const uint32_t NormalCountSqrt = 8;
@@ -908,24 +906,23 @@ static void SHEReduction(FDemoRoot& Root, FGraphicsContext& Gfx, ID3D12Resource*
 	const uint32_t SphericalHarmonicCount = 33; // 25(SH5) + 9(SH3) - 1(DC)
 	const uint32_t GroupCountZ = 64;
 
-	ID3D12Resource* TempSHEMatrixAT3D;
+	ID3D12Resource *TempSHEMatrixAT3D;
 	const D3D12_CPU_DESCRIPTOR_HANDLE TempSHEMatrixAT3DUAV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	const D3D12_CPU_DESCRIPTOR_HANDLE TempSHEMatrixAT3DSRV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	{
 		auto Desc = CD3DX12_RESOURCE_DESC::Tex3D(
-			DXGI_FORMAT_R32_FLOAT, 
-			SphericalHarmonicCount * 2,  // Width
-			SphericalHarmonicCount + 3,  // Height  
-			GroupCountZ,  // Depth
-			1, // MipLevels
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
-		);
+			DXGI_FORMAT_R32_FLOAT,
+			SphericalHarmonicCount * 2, // Width
+			SphericalHarmonicCount + 3, // Height
+			GroupCountZ,				// Depth
+			1,							// MipLevels
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 		VHR(Gfx.Device->CreateCommittedResource(
 			get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
-			D3D12_HEAP_FLAG_NONE, 
-			&Desc, 
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 
-			nullptr, 
+			D3D12_HEAP_FLAG_NONE,
+			&Desc,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			nullptr,
 			IID_PPV_ARGS(&TempSHEMatrixAT3D)));
 		OutTempResources.push_back(TempSHEMatrixAT3D);
 
@@ -933,10 +930,10 @@ static void SHEReduction(FDemoRoot& Root, FGraphicsContext& Gfx, ID3D12Resource*
 		Gfx.Device->CreateShaderResourceView(TempSHEMatrixAT3D, nullptr, TempSHEMatrixAT3DSRV);
 	}
 
-	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
+	ID3D12GraphicsCommandList2 *CmdList = Gfx.CmdList;
 
 	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
-	auto* CPUAddress = (FSHEReductionConstantData*)AllocateGPUMemory(Gfx, sizeof(FSHEReductionConstantData), GPUAddress);
+	auto *CPUAddress = (FSHEReductionConstantData *)AllocateGPUMemory(Gfx, sizeof(FSHEReductionConstantData), GPUAddress);
 
 	CPUAddress->ViewCount = ViewCount;
 	CPUAddress->ElementCount = ViewCount * NormalCount * RoughnessCount;
@@ -967,7 +964,7 @@ static void SHEReduction(FDemoRoot& Root, FGraphicsContext& Gfx, ID3D12Resource*
 	CmdList->Dispatch(1, 1, GroupCountZ);
 
 	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
-    	TempSHEMatrixAT3D, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+									TempSHEMatrixAT3D, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 
 	// Merge
 	Gfx.CmdList->SetPipelineState(Root.Pipelines[PSO_SHE_Reduction_Merge]);
@@ -985,7 +982,7 @@ static void SHEReduction(FDemoRoot& Root, FGraphicsContext& Gfx, ID3D12Resource*
 
 	{
 		D3D12_GPU_VIRTUAL_ADDRESS GPUAddress;
-		auto* CPUAddress = (FSHEReductionConstantData*)AllocateGPUMemory(Gfx, sizeof(FSHEReductionConstantData), GPUAddress);
+		auto *CPUAddress = (FSHEReductionConstantData *)AllocateGPUMemory(Gfx, sizeof(FSHEReductionConstantData), GPUAddress);
 
 		CPUAddress->ViewCount = ViewCount;
 		CPUAddress->ElementCount = ViewCount * NormalCount * RoughnessCount;
@@ -1013,11 +1010,11 @@ static void SHEReduction(FDemoRoot& Root, FGraphicsContext& Gfx, ID3D12Resource*
 		CmdList->Dispatch(1, 1, GroupCountZ);
 
 		CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
-    		OutSHEMatrixAT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));	
+										OutSHEMatrixAT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 	}
 }
 
-static void SHESolve(FGraphicsContext& Gfx, ID3D12Resource*& OutSHESHCoeff, D3D12_CPU_DESCRIPTOR_HANDLE& OutSHESHCoeffSRV, D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixAT)
+static void SHESolve(FGraphicsContext &Gfx, ID3D12Resource *&OutSHESHCoeff, D3D12_CPU_DESCRIPTOR_HANDLE &OutSHESHCoeffSRV, D3D12_CPU_DESCRIPTOR_HANDLE SHEMatrixAT)
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE TempSHESHCoeffUAV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	{
@@ -1040,7 +1037,7 @@ static void SHESolve(FGraphicsContext& Gfx, ID3D12Resource*& OutSHESHCoeff, D3D1
 		Gfx.Device->CreateShaderResourceView(OutSHESHCoeff, &SRVDesc, OutSHESHCoeffSRV);
 	}
 
-	ID3D12GraphicsCommandList2* CmdList = Gfx.CmdList;
+	ID3D12GraphicsCommandList2 *CmdList = Gfx.CmdList;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE TableBaseCPU;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE TableBaseGPU;
@@ -1056,13 +1053,13 @@ static void SHESolve(FGraphicsContext& Gfx, ID3D12Resource*& OutSHESHCoeff, D3D1
 	CmdList->Dispatch(1, 1, 1);
 
 	CmdList->ResourceBarrier(1, get_rvalue_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
-    	OutSHESHCoeff, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+									OutSHESHCoeff, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
-static void LoadGLTFMesh(const char* FileName, FMesh& OutMesh, eastl::vector<FVertex>& InOutVertices, eastl::vector<uint32_t>& InOutIndices)
+static void LoadGLTFMesh(const char *FileName, FMesh &OutMesh, eastl::vector<FVertex> &InOutVertices, eastl::vector<uint32_t> &InOutIndices)
 {
 	cgltf_options Options = {};
-	cgltf_data* Data = nullptr;
+	cgltf_data *Data = nullptr;
 	{
 		cgltf_result R = cgltf_parse_file(&Options, FileName, &Data);
 		EA_ASSERT(R == cgltf_result_success);
@@ -1070,7 +1067,7 @@ static void LoadGLTFMesh(const char* FileName, FMesh& OutMesh, eastl::vector<FVe
 		EA_ASSERT(R == cgltf_result_success);
 	}
 
-	cgltf_mesh* Mesh = &Data->meshes[0];
+	cgltf_mesh *Mesh = &Data->meshes[0];
 	EA_ASSERT(Mesh->primitives_count <= MESH_MAX_NUM_SECTIONS);
 
 	OutMesh.NumSections = (uint32_t)Mesh->primitives_count;
@@ -1099,31 +1096,31 @@ static void LoadGLTFMesh(const char* FileName, FMesh& OutMesh, eastl::vector<FVe
 	{
 		// Indices.
 		{
-			const cgltf_accessor* Accessor = Data->meshes[0].primitives[SectionIdx].indices;
+			const cgltf_accessor *Accessor = Data->meshes[0].primitives[SectionIdx].indices;
 
 			EA_ASSERT(Accessor->buffer_view);
 			EA_ASSERT(Accessor->stride == Accessor->buffer_view->stride || Accessor->buffer_view->stride == 0);
 			EA_ASSERT((Accessor->stride * Accessor->count) == Accessor->buffer_view->size);
 
-			const auto DataAddr = (const uint8_t*)Accessor->buffer_view->buffer->data + Accessor->offset + Accessor->buffer_view->offset;
+			const auto DataAddr = (const uint8_t *)Accessor->buffer_view->buffer->data + Accessor->offset + Accessor->buffer_view->offset;
 
 			OutMesh.Sections[SectionIdx].StartIndexLocation = (uint32_t)InOutIndices.size();
 			OutMesh.Sections[SectionIdx].IndexCount = (uint32_t)Accessor->count;
 
 			if (Accessor->stride == 1)
 			{
-				const uint8_t* DataU8 = (const uint8_t*)DataAddr;
+				const uint8_t *DataU8 = (const uint8_t *)DataAddr;
 				for (uint32_t Idx = 0; Idx < Accessor->count; ++Idx)
 				{
-					InOutIndices.push_back((uint32_t)* DataU8++);
+					InOutIndices.push_back((uint32_t)*DataU8++);
 				}
 			}
 			else if (Accessor->stride == 2)
 			{
-				const uint16_t* DataU16 = (const uint16_t*)DataAddr;
+				const uint16_t *DataU16 = (const uint16_t *)DataAddr;
 				for (uint32_t Idx = 0; Idx < Accessor->count; ++Idx)
 				{
-					InOutIndices.push_back((uint32_t)* DataU16++);
+					InOutIndices.push_back((uint32_t)*DataU16++);
 				}
 			}
 			else if (Accessor->stride == 4)
@@ -1143,14 +1140,14 @@ static void LoadGLTFMesh(const char* FileName, FMesh& OutMesh, eastl::vector<FVe
 
 			for (uint32_t AttribIdx = 0; AttribIdx < NumAttribs; ++AttribIdx)
 			{
-				const cgltf_attribute* Attrib = &Data->meshes[0].primitives[SectionIdx].attributes[AttribIdx];
-				const cgltf_accessor* Accessor = Attrib->data;
+				const cgltf_attribute *Attrib = &Data->meshes[0].primitives[SectionIdx].attributes[AttribIdx];
+				const cgltf_accessor *Accessor = Attrib->data;
 
 				EA_ASSERT(Accessor->buffer_view);
 				EA_ASSERT(Accessor->stride == Accessor->buffer_view->stride || Accessor->buffer_view->stride == 0);
 				EA_ASSERT((Accessor->stride * Accessor->count) == Accessor->buffer_view->size);
 
-				const auto DataAddr = (const uint8_t*)Accessor->buffer_view->buffer->data + Accessor->offset + Accessor->buffer_view->offset;
+				const auto DataAddr = (const uint8_t *)Accessor->buffer_view->buffer->data + Accessor->offset + Accessor->buffer_view->offset;
 
 				if (Attrib->type == cgltf_attribute_type_position)
 				{
@@ -1186,12 +1183,12 @@ static void LoadGLTFMesh(const char* FileName, FMesh& OutMesh, eastl::vector<FVe
 	cgltf_free(Data);
 }
 
-static void Initialize(FDemoRoot& Root)
+static void Initialize(FDemoRoot &Root)
 {
-	FGraphicsContext& Gfx = Root.Gfx;
+	FGraphicsContext &Gfx = Root.Gfx;
 
-	eastl::vector<ID3D12Resource*> TempResources;
-	eastl::vector<ID3D12Resource*> TexturesThatNeedMipmaps;
+	eastl::vector<ID3D12Resource *> TempResources;
+	eastl::vector<ID3D12Resource *> TexturesThatNeedMipmaps;
 
 	const uint32_t NumSamples = 8;
 	CreateUIContext(Gfx, NumSamples, Root.UI, TempResources);
@@ -1203,12 +1200,12 @@ static void Initialize(FDemoRoot& Root)
 		{
 			FMesh Mesh = {};
 			LoadGLTFMesh("Data/Meshes/Cube.gltf", Mesh, AllVertices, AllIndices);
-			Root.StaticMeshes.push_back(FStaticMesh{ Mesh.Sections[0].IndexCount, Mesh.Sections[0].StartIndexLocation, Mesh.Sections[0].BaseVertexLocation });
+			Root.StaticMeshes.push_back(FStaticMesh{Mesh.Sections[0].IndexCount, Mesh.Sections[0].StartIndexLocation, Mesh.Sections[0].BaseVertexLocation});
 		}
 		{
 			FMesh Mesh = {};
 			LoadGLTFMesh("Data/Meshes/Sphere.gltf", Mesh, AllVertices, AllIndices);
-			Root.StaticMeshes.push_back(FStaticMesh{ Mesh.Sections[0].IndexCount, Mesh.Sections[0].StartIndexLocation, Mesh.Sections[0].BaseVertexLocation });
+			Root.StaticMeshes.push_back(FStaticMesh{Mesh.Sections[0].IndexCount, Mesh.Sections[0].StartIndexLocation, Mesh.Sections[0].BaseVertexLocation});
 		}
 
 		const int32_t NumRows = 5;
@@ -1240,11 +1237,11 @@ static void Initialize(FDemoRoot& Root)
 	{
 		const D3D12_RESOURCE_DESC Desc = CD3DX12_RESOURCE_DESC::Buffer(AllVertices.size() * sizeof(FVertex));
 
-		ID3D12Resource* StagingVB;
+		ID3D12Resource *StagingVB;
 		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&StagingVB)));
 		TempResources.push_back(StagingVB);
 
-		void* Ptr;
+		void *Ptr;
 		VHR(StagingVB->Map(0, get_rvalue_ptr(CD3DX12_RANGE(0, 0)), &Ptr));
 		memcpy(Ptr, AllVertices.data(), AllVertices.size() * sizeof(FVertex));
 		StagingVB->Unmap(0, nullptr);
@@ -1263,11 +1260,11 @@ static void Initialize(FDemoRoot& Root)
 	{
 		const D3D12_RESOURCE_DESC Desc = CD3DX12_RESOURCE_DESC::Buffer(AllIndices.size() * sizeof(uint32_t));
 
-		ID3D12Resource* StagingIB;
+		ID3D12Resource *StagingIB;
 		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD)), D3D12_HEAP_FLAG_NONE, &Desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&StagingIB)));
 		TempResources.push_back(StagingIB);
 
-		void* Ptr;
+		void *Ptr;
 		VHR(StagingIB->Map(0, get_rvalue_ptr(CD3DX12_RANGE(0, 0)), &Ptr));
 		memcpy(Ptr, AllIndices.data(), AllIndices.size() * sizeof(uint32_t));
 		StagingIB->Unmap(0, nullptr);
@@ -1325,7 +1322,7 @@ static void Initialize(FDemoRoot& Root)
 	{
 		CD3DX12_RESOURCE_DESC DescColor = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, Gfx.Resolution[0], Gfx.Resolution[1], 1, 1, NumSamples);
 		DescColor.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &DescColor, D3D12_RESOURCE_STATE_RENDER_TARGET, get_rvalue_ptr(CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, XMVECTORF32{ 0.0f })), IID_PPV_ARGS(&Root.MSColorBuffer)));
+		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE, &DescColor, D3D12_RESOURCE_STATE_RENDER_TARGET, get_rvalue_ptr(CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, XMVECTORF32{0.0f})), IID_PPV_ARGS(&Root.MSColorBuffer)));
 
 		CD3DX12_RESOURCE_DESC DescDepth = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, Gfx.Resolution[0], Gfx.Resolution[1], 1, 1, NumSamples);
 		DescDepth.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -1341,10 +1338,10 @@ static void Initialize(FDemoRoot& Root)
 	// Create accumulation buffer.
 	{
 		CD3DX12_RESOURCE_DESC DescAccum = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, Gfx.Resolution[0], Gfx.Resolution[1],
-    		1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+																	   1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 		VHR(Gfx.Device->CreateCommittedResource(get_rvalue_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)), D3D12_HEAP_FLAG_NONE,
-    		&DescAccum, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&Root.AccumulationBuffer)));
+												&DescAccum, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&Root.AccumulationBuffer)));
 
 		Root.AccumulationBufferSRV = AllocateDescriptors(Gfx, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
@@ -1359,14 +1356,14 @@ static void Initialize(FDemoRoot& Root)
 
 	// Execute "data upload" and "data generation" GPU commands, create mipmaps, destroy temp resources when GPU is done.
 	{
-		const DXGI_FORMAT Formats[] = { DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM };
+		const DXGI_FORMAT Formats[] = {DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM};
 		FMipmapGenerator MipmapGenerators[eastl::size(Formats)];
 		for (uint32_t Idx = 0; Idx < eastl::size(Formats); ++Idx)
 		{
 			CreateMipmapGenerator(Root.Gfx, Formats[Idx], MipmapGenerators[Idx]);
 		}
 
-		for (ID3D12Resource* Texture : TexturesThatNeedMipmaps)
+		for (ID3D12Resource *Texture : TexturesThatNeedMipmaps)
 		{
 			const D3D12_RESOURCE_DESC Desc = Texture->GetDesc();
 
@@ -1384,7 +1381,7 @@ static void Initialize(FDemoRoot& Root)
 		Root.Gfx.CmdQueue->ExecuteCommandLists(1, CommandListCast(&Root.Gfx.CmdList));
 		WaitForGPU(Root.Gfx);
 
-		for (ID3D12Resource* Resource : TempResources)
+		for (ID3D12Resource *Resource : TempResources)
 		{
 			SAFE_RELEASE(Resource);
 		}
@@ -1394,7 +1391,7 @@ static void Initialize(FDemoRoot& Root)
 		}
 	}
 
-	//Root.CameraPosition = XMFLOAT3(0.0f, 0.0f, -10.0f);
+	// Root.CameraPosition = XMFLOAT3(0.0f, 0.0f, -10.0f);
 	Root.CameraPosition = XMFLOAT3(0.0f, 0.0f, 12.0f);
 	Root.CameraFocusPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
@@ -1404,13 +1401,13 @@ static void Initialize(FDemoRoot& Root)
 	Root.SHEBias = 2.5f;
 }
 
-static void Shutdown(FDemoRoot& Root)
+static void Shutdown(FDemoRoot &Root)
 {
-	for (ID3D12RootSignature* Signature : Root.RootSignatures)
+	for (ID3D12RootSignature *Signature : Root.RootSignatures)
 	{
 		SAFE_RELEASE(Signature);
 	}
-	for (ID3D12PipelineState* Pipeline : Root.Pipelines)
+	for (ID3D12PipelineState *Pipeline : Root.Pipelines)
 	{
 		SAFE_RELEASE(Pipeline);
 	}
@@ -1426,13 +1423,13 @@ static void Shutdown(FDemoRoot& Root)
 	DestroyUIContext(Root.UI);
 }
 
-static int32_t Run(FDemoRoot& Root)
+static int32_t Run(FDemoRoot &Root)
 {
 	EA::StdC::Init();
 	ImGui::CreateContext();
 
 	HWND Window = CreateSimpleWindow("ImageBasedPBR", 1920, 1080);
-	CreateGraphicsContext(Window, /*bShouldCreateDepthBuffer*/false, Root.Gfx);
+	CreateGraphicsContext(Window, /*bShouldCreateDepthBuffer*/ false, Root.Gfx);
 
 	Initialize(Root);
 
