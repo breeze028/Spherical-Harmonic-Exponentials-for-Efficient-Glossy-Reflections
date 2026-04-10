@@ -508,7 +508,8 @@ static void CreateEnvMap(FGraphicsContext &Gfx, const FStaticMesh &Cube, ID3D12R
 	int Width, Height;
 	D3D12_SUBRESOURCE_DATA ImageData = {};
 	stbi_set_flip_vertically_on_load(1);
-	ImageData.pData = stbi_loadf("Data/Textures/Newport_Loft.hdr", &Width, &Height, nullptr, 3);
+	ImageData.pData = stbi_loadf("Data/Textures/qwantani_sunset_puresky_4k.hdr", &Width, &Height, nullptr, 3);
+	//ImageData.pData = stbi_loadf("Data/Textures/Newport_Loft.hdr", &Width, &Height, nullptr, 3);
 	stbi_set_flip_vertically_on_load(0);
 	ImageData.RowPitch = Width * sizeof(XMFLOAT3);
 	EA_ASSERT(ImageData.pData);
@@ -1293,11 +1294,6 @@ static void Initialize(FDemoRoot &Root)
 	Gfx.CmdList->SetGraphicsRootSignature(Root.RootSignatures[PSO_GenerateIrradianceMap]);
 	CreateIrradianceMap(Root.Gfx, Root.EnvMapSRV, Root.StaticMeshes[MESH_Cube], Root.IrradianceMap, Root.IrradianceMapSRV, TempResources);
 
-	// Create PrefilteredEnvMap.
-	Gfx.CmdList->SetPipelineState(Root.Pipelines[PSO_PrefilterEnvMap]);
-	Gfx.CmdList->SetGraphicsRootSignature(Root.RootSignatures[PSO_PrefilterEnvMap]);
-	CreatePrefilteredEnvMap(Gfx, Root.EnvMapSRV, Root.StaticMeshes[MESH_Cube], Root.PrefilteredEnvMap, Root.PrefilteredEnvMapSRV, TempResources);
-
 	// Create BRDFIntegrationMap.
 	Gfx.CmdList->SetPipelineState(Root.Pipelines[PSO_GenerateBRDFIntegrationMap]);
 	Gfx.CmdList->SetComputeRootSignature(Root.RootSignatures[PSO_GenerateBRDFIntegrationMap]);
@@ -1377,6 +1373,11 @@ static void Initialize(FDemoRoot &Root)
 			}
 		}
 
+		// Create PrefilteredEnvMap.
+		Gfx.CmdList->SetPipelineState(Root.Pipelines[PSO_PrefilterEnvMap]);
+		Gfx.CmdList->SetGraphicsRootSignature(Root.RootSignatures[PSO_PrefilterEnvMap]);
+		CreatePrefilteredEnvMap(Gfx, Root.EnvMapSRV, Root.StaticMeshes[MESH_Cube], Root.PrefilteredEnvMap, Root.PrefilteredEnvMapSRV, TempResources);
+
 		Root.Gfx.CmdList->Close();
 		Root.Gfx.CmdQueue->ExecuteCommandLists(1, CommandListCast(&Root.Gfx.CmdList));
 		WaitForGPU(Root.Gfx);
@@ -1395,10 +1396,11 @@ static void Initialize(FDemoRoot &Root)
 	Root.CameraPosition = XMFLOAT3(0.0f, 0.0f, 12.0f);
 	Root.CameraFocusPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
-	Root.LastIBLMode = Root.IBLMode = Root.LastMaterialMode = Root.MaterialMode = 0;
+	Root.LastIBLMode = Root.IBLMode = IBL_MODE_SPLIT_SUM_APPROXIMATION;
+	Root.LastMaterialMode = Root.MaterialMode = MATERIAL_MODE_SPECULAR_ONLY;
 	Root.NumFrames = 0;
 
-	Root.SHEBias = 2.5f;
+	Root.SHEBias = 1.5f;
 }
 
 static void Shutdown(FDemoRoot &Root)

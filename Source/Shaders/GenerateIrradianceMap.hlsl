@@ -45,9 +45,9 @@ void MainPS(
 	int NumSamples = 0;
 	float3 Irradiance = 0.0f;
 
-	for (float Phi = 0.0f; Phi < (2.0f * PI); Phi += 0.025f)
+	for (float Phi = 0.0f; Phi < (2.0f * PI); Phi += 0.005f)
 	{
-		for (float Theta = 0.0f; Theta < (0.5f * PI); Theta += 0.025f)
+		for (float Theta = 0.0f; Theta < (0.5f * PI); Theta += 0.005f)
 		{
 			// Point on a hemisphere.
 			float3 H = float3(sin(Theta) * cos(Phi), sin(Theta) * sin(Phi), cos(Theta));

@@ -34,7 +34,7 @@ float2 IntegrateBRDF(float Roughness, float NoV)
 		if (NoL > 0.0f)
 		{
 			float G = GeometrySmith(NoL, NoV, Roughness);
-			float G_Vis = G * VoH / (NoH * NoV);
+			float G_Vis = G * VoH / max(NoH * NoV, 1e-5f);
 			float Fc = pow(1.0f - VoH, 5.0f);
 			A += (1.0f - Fc) * G_Vis;
 			B += Fc * G_Vis;
@@ -51,8 +51,11 @@ void MainCS(uint3 ThreadID : SV_DispatchThreadID)
 	float Width, Height;
 	GBRDFIntegrationMap.GetDimensions(Width, Height);
 
-	float Roughness = (ThreadID.y + 1) / Height;
-	float NoV = (ThreadID.x + 1) / Width;
+	float Roughness = ThreadID.y / Height;
+	float NoV = ThreadID.x / Width;
+
+	Roughness = max(Roughness, 0.04f);
+	NoV = max(NoV, 0.02f);
 
 	float2 Result = IntegrateBRDF(Roughness, NoV);
 

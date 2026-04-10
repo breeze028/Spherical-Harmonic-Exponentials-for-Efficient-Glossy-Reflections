@@ -108,7 +108,7 @@ float3 FresnelSchlickRoughness(float CosTheta, float3 F0, float Roughness)
 
 		float3 PrefilteredColor = GPrefilteredEnvMap.SampleLevel(GSampler, R, Roughness * 5.0f).rgb;
 		float2 EnvBRDF = GBRDFIntegrationMap.SampleLevel(GSampler, float2(min(NoV, 0.999f), min(Roughness, 0.999f)), 0.0f).rg;
-		Specular = PrefilteredColor * (F * EnvBRDF.x + EnvBRDF.y);
+		Specular = PrefilteredColor * (F0 * EnvBRDF.x + EnvBRDF.y);
 	}
 	else if (GPerFrameCB.IBLMode == IBL_MODE_SPHERICAL_HARMONICS_EXPONENTIAL)
 	{

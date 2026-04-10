@@ -42,7 +42,7 @@ void MainPS(
 
 	float3 PrefilteredColor = 0.0f;
 	float TotalWeight = 0.0f;
-	const uint NumSamples = 4 * 1024;
+	const uint NumSamples = 32768;
 
 	for (uint SampleIdx = 0; SampleIdx < NumSamples; ++SampleIdx)
 	{
@@ -52,7 +52,7 @@ void MainPS(
 		float NoL = saturate(dot(N, L));
 		if (NoL > 0.0f)
 		{
-			PrefilteredColor += GEnvMap.SampleLevel(GSampler, L, 0).rgb * NoL;
+			PrefilteredColor += GEnvMap.SampleLevel(GSampler, L, log2(128 * Roughness)).rgb * NoL;
 			TotalWeight += NoL;
 		}
 	}
